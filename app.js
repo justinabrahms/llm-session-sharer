@@ -311,12 +311,19 @@
     const checkbox = $('#hide-claude');
     const conversation = $('#conversation');
 
-    checkbox.addEventListener('change', () => {
+    function updateFilter() {
       if (checkbox.checked) {
         conversation.classList.add('hide-claude');
       } else {
         conversation.classList.remove('hide-claude');
       }
+    }
+
+    // Use both change and click for better compatibility with in-app browsers
+    checkbox.addEventListener('change', updateFilter);
+    checkbox.addEventListener('click', () => {
+      // Timeout to ensure checked state is updated
+      setTimeout(updateFilter, 0);
     });
   }
 
