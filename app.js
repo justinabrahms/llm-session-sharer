@@ -306,6 +306,20 @@
     });
   }
 
+  // Setup hide Claude toggle
+  function setupHideClaudeToggle() {
+    const checkbox = $('#hide-claude');
+    const conversation = $('#conversation');
+
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) {
+        conversation.classList.add('hide-claude');
+      } else {
+        conversation.classList.remove('hide-claude');
+      }
+    });
+  }
+
   // Handle form submission
   function setupForm() {
     $('#gist-form').addEventListener('submit', (e) => {
@@ -375,6 +389,7 @@
   async function init() {
     setupForm();
     setupCopyButton();
+    setupHideClaudeToggle();
 
     const params = new URLSearchParams(window.location.search);
     const gistParam = params.get('gist');
