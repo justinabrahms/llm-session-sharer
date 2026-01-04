@@ -320,6 +320,48 @@
     });
   }
 
+  // Keyboard navigation (j/k vim-style)
+  function setupKeyboardNav() {
+    let selectedIndex = -1;
+
+    function getBlocks() {
+      return Array.from($('#conversation').children);
+    }
+
+    function selectBlock(index) {
+      const blocks = getBlocks();
+      if (blocks.length === 0) return;
+
+      // Clamp index
+      index = Math.max(0, Math.min(index, blocks.length - 1));
+
+      // Remove previous selection
+      blocks.forEach(b => b.classList.remove('selected'));
+
+      // Select new block
+      selectedIndex = index;
+      const block = blocks[selectedIndex];
+      block.classList.add('selected');
+      block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    document.addEventListener('keydown', (e) => {
+      // Ignore if typing in input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      const blocks = getBlocks();
+      if (blocks.length === 0) return;
+
+      if (e.key === 'j') {
+        e.preventDefault();
+        selectBlock(selectedIndex + 1);
+      } else if (e.key === 'k') {
+        e.preventDefault();
+        selectBlock(selectedIndex - 1);
+      }
+    });
+  }
+
   // Show error
   function showError(message) {
     hide($('#loading'));
@@ -362,6 +404,7 @@
       hide($('#loading'));
       show($('#viewer'));
       renderConversation(segments);
+      setupKeyboardNav();
     } catch (err) {
       showError(err.message);
     }
