@@ -164,12 +164,37 @@
       return placeholder;
     });
 
+    // Handle markdown tables before escaping
+    const tables = [];
+    text = text.replace(/^(\|.+\|)\n(\|[-:| ]+\|)\n((?:\|.+\|\n?)+)/gm, (match, header, separator, body) => {
+      const placeholder = `__TABLE_${tables.length}__`;
+      const headerCells = header.split('|').slice(1, -1).map(c => c.trim());
+      const bodyRows = body.trim().split('\n').map(row =>
+        row.split('|').slice(1, -1).map(c => c.trim())
+      );
+
+      let html = '<table><thead><tr>';
+      headerCells.forEach(cell => { html += `<th>${escapeHtml(cell)}</th>`; });
+      html += '</tr></thead><tbody>';
+      bodyRows.forEach(row => {
+        html += '<tr>';
+        row.forEach(cell => { html += `<td>${escapeHtml(cell)}</td>`; });
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      tables.push(html);
+      return placeholder;
+    });
+
     // Escape HTML in the remaining text
     text = escapeHtml(text);
 
-    // Restore code blocks (they were already escaped)
+    // Restore code blocks and tables (they were already escaped)
     codeBlocks.forEach((block, i) => {
       text = text.replace(`__CODE_BLOCK_${i}__`, block);
+    });
+    tables.forEach((table, i) => {
+      text = text.replace(`__TABLE_${i}__`, table);
     });
 
     // Inline code (must come before other inline formatting)
@@ -195,8 +220,9 @@
     // Numbered lists (1. at start of line) - keep as-is, just ensure proper spacing
     text = text.replace(/^(\d+)\.\s+(.+)$/gm, '$1. $2');
 
-    // Convert newlines to <br> (but not inside pre blocks)
-    text = text.replace(/\n/g, '<br>\n');
+    // Collapse multiple blank lines, then convert single newlines to <br>
+    text = text.replace(/\n{3,}/g, '\n\n');  // Max 2 newlines
+    text = text.replace(/\n/g, '<br>');
 
     return text;
   }
