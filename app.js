@@ -433,6 +433,11 @@
       show($('#viewer'));
       renderConversation(segments);
       setupKeyboardNav();
+
+      // Show link to original gist
+      const gistLink = $('#gist-link');
+      gistLink.href = `https://gist.github.com/${gistId}`;
+      show(gistLink);
     } catch (err) {
       showError(err.message);
     }
