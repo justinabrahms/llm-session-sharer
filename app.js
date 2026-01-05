@@ -56,8 +56,14 @@
 
       // User message: starts with "> "
       if (line.startsWith('> ')) {
-        pushCurrent();
-        current = { type: 'user', content: [line.slice(2)] };
+        const text = line.slice(2);
+        // Continue existing user message instead of starting new one
+        if (current && current.type === 'user') {
+          current.content.push(text);
+        } else {
+          pushCurrent();
+          current = { type: 'user', content: [text] };
+        }
         continue;
       }
 
