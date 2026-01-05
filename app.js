@@ -68,7 +68,8 @@
       }
 
       // Tool invocation: ⏺ ToolName(args) - detect by pattern
-      const toolMatch = line.match(/^⏺\s*(Bash|Read|Write|Edit|Update|Glob|Grep|Fetch|Task|TodoWrite|WebFetch|WebSearch|mcp_|NotebookEdit|AskUser)\s*\(/i);
+      // Match known tools OR mcp__* server tools (e.g., mcp__github__get_commit)
+      const toolMatch = line.match(/^⏺\s*(Bash|Read|Write|Edit|Update|Glob|Grep|Fetch|Task|TodoWrite|WebFetch|WebSearch|NotebookEdit|AskUser|mcp__[\w]+)\s*\(/i);
       if (toolMatch) {
         pushCurrent();
         current = { type: 'tool', content: [line.slice(2)] };
@@ -151,6 +152,53 @@
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  // Simple markdown to HTML renderer
+  function renderMarkdown(text) {
+    // First, handle fenced code blocks (``` ... ```)
+    const codeBlocks = [];
+    text = text.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+      const placeholder = `__CODE_BLOCK_${codeBlocks.length}__`;
+      codeBlocks.push(`<pre><code class="code-block${lang ? ' language-' + lang : ''}">${escapeHtml(code.trim())}</code></pre>`);
+      return placeholder;
+    });
+
+    // Escape HTML in the remaining text
+    text = escapeHtml(text);
+
+    // Restore code blocks (they were already escaped)
+    codeBlocks.forEach((block, i) => {
+      text = text.replace(`__CODE_BLOCK_${i}__`, block);
+    });
+
+    // Inline code (must come before other inline formatting)
+    text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    // Bold (**text** or __text__)
+    text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    text = text.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+
+    // Italic (*text* or _text_) - be careful not to match inside words
+    text = text.replace(/(?<![*\w])\*([^*]+)\*(?![*\w])/g, '<em>$1</em>');
+    text = text.replace(/(?<![_\w])_([^_]+)_(?![_\w])/g, '<em>$1</em>');
+
+    // Links [text](url)
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+    // Headers (# text) - convert to bold for simplicity in chat context
+    text = text.replace(/^#{1,6}\s+(.+)$/gm, '<strong>$1</strong>');
+
+    // Bullet lists (- or * at start of line)
+    text = text.replace(/^[\-\*]\s+(.+)$/gm, '• $1');
+
+    // Numbered lists (1. at start of line) - keep as-is, just ensure proper spacing
+    text = text.replace(/^(\d+)\.\s+(.+)$/gm, '$1. $2');
+
+    // Convert newlines to <br> (but not inside pre blocks)
+    text = text.replace(/\n/g, '<br>\n');
+
+    return text;
   }
 
   // Detect if a line looks like code (tree, path, etc.)
@@ -249,7 +297,7 @@
         el.className = 'message-row assistant';
         el.innerHTML = `
           <div class="message-label">Claude</div>
-          <div class="message-bubble">${formatContent(segment.content)}</div>
+          <div class="message-bubble">${renderMarkdown(segment.content)}</div>
         `;
         container.appendChild(el);
       } else if (segment.type === 'tool') {
