@@ -19,7 +19,7 @@ without modifying the original gist.
 ### Requirement: Add Annotation
 
 The system SHALL allow users to add annotations between any two conversation
-segments via click interaction.
+segments via click interaction on desktop devices. Mobile devices are view-only.
 
 #### Scenario: Add annotation via click
 
@@ -36,9 +36,15 @@ segments via click interaction.
 - **AND** the user cancels (clicks cancel or presses Escape)
 - **THEN** the input is dismissed without saving
 
+#### Scenario: Mobile view-only
+
+- **WHEN** a user views the session on a mobile device
+- **THEN** existing annotations are displayed
+- **AND** no UI for adding annotations is shown
+
 ### Requirement: Edit Annotation
 
-The system SHALL allow users to edit existing annotations.
+The system SHALL allow users to edit existing annotations on desktop devices.
 
 #### Scenario: Edit annotation
 
@@ -49,7 +55,7 @@ The system SHALL allow users to edit existing annotations.
 
 ### Requirement: Delete Annotation
 
-The system SHALL allow users to delete annotations.
+The system SHALL allow users to delete annotations on desktop devices.
 
 #### Scenario: Delete annotation
 

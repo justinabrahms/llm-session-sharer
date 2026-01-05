@@ -15,19 +15,20 @@
 - [ ] 2.4 Implement `editAnnotation(segmentIndex, text)`
 - [ ] 2.5 Implement `deleteAnnotation(segmentIndex)`
 
-## 3. Click-Based UI
+## 3. Click-Based UI (Desktop Only)
 
-- [ ] 3.1 Add "+" button between each segment (hidden by default, shown on
+- [ ] 3.1 Detect mobile devices and hide editing UI
+- [ ] 3.2 Add "+" button between each segment (hidden by default, shown on
   hover)
-- [ ] 3.2 Clicking "+" opens inline text input for annotation
-- [ ] 3.3 Save button commits annotation and updates URL
-- [ ] 3.4 Cancel button or Escape dismisses input
+- [ ] 3.3 Clicking "+" opens inline text input for annotation
+- [ ] 3.4 Save button commits annotation and updates URL
+- [ ] 3.5 Cancel button or Escape dismisses input
 
 ## 4. Annotation Display
 
 - [ ] 4.1 Render existing annotations as styled callout blocks
-- [ ] 4.2 Add edit button to existing annotations
-- [ ] 4.3 Add delete button to existing annotations
+- [ ] 4.2 Add edit button to existing annotations (desktop only)
+- [ ] 4.3 Add delete button to existing annotations (desktop only)
 - [ ] 4.4 Style annotations distinctly (e.g., yellow/note color, icon)
 
 ## 5. Testing
