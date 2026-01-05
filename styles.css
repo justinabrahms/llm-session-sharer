@@ -296,6 +296,11 @@ footer a:hover {
   color: #888;
 }
 
+.footer-sep {
+  color: #ccc;
+  margin: 0 8px;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   body {
