@@ -65,6 +65,33 @@
   let annotations = [];
   let selectionState = { mode: 'none', startIndex: null }; // none, started, editing
   let editingAnnotationIndex = null;
+  let annotationModeActive = false;
+
+  // Toggle annotation mode on/off
+  function toggleAnnotationMode() {
+    annotationModeActive = !annotationModeActive;
+    updateAnnotationModeUI();
+    if (!annotationModeActive) {
+      // Exiting mode cancels any in-progress selection
+      cancelSelection();
+    } else if (window._lastSegments) {
+      // Re-render to show selectable state
+      renderConversation(window._lastSegments);
+    }
+  }
+
+  // Update UI to reflect annotation mode state
+  function updateAnnotationModeUI() {
+    const btn = $('#annotate-toggle');
+    const conversation = $('#conversation');
+    if (btn) {
+      btn.classList.toggle('active', annotationModeActive);
+      btn.textContent = annotationModeActive ? 'Done' : 'Annotate';
+    }
+    if (conversation) {
+      conversation.classList.toggle('annotation-mode', annotationModeActive);
+    }
+  }
 
   function addAnnotation(startIndex, endIndex, text) {
     // Ensure startIndex <= endIndex
@@ -430,9 +457,10 @@
     });
   }
 
-  // Handle segment click for range selection (desktop only)
+  // Handle segment click for range selection (desktop only, annotation mode required)
   function handleSegmentClick(segmentIndex) {
     if (isMobile()) return;
+    if (!annotationModeActive) return;
 
     if (selectionState.mode === 'none') {
       // Start selection
@@ -633,8 +661,8 @@
             }
             handleSegmentClick(segIdx);
           });
-          // Add visual cue for clickable segments
-          if (selectionState.mode !== 'editing') {
+          // Add visual cue for clickable segments (only when annotation mode is active)
+          if (annotationModeActive && selectionState.mode !== 'editing') {
             el.classList.add('selectable');
           }
         }
@@ -709,6 +737,14 @@
         cancelSelection();
       }
     });
+  }
+
+  // Setup annotation mode toggle button
+  function setupAnnotationModeToggle() {
+    const btn = $('#annotate-toggle');
+    if (btn) {
+      btn.addEventListener('click', toggleAnnotationMode);
+    }
   }
 
   // Keyboard navigation (j/k vim-style)
@@ -802,6 +838,7 @@
       renderConversation(segments);
       setupKeyboardNav();
       setupAnnotationEscapeHandler();
+      setupAnnotationModeToggle();
 
       // Show link to original gist
       const gistLink = $('#gist-link');
