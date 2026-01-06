@@ -343,6 +343,163 @@ for (const test of markdownTests) {
   }
 }
 
+// ============================================
+// Annotation encoding/decoding tests
+// ============================================
+
+// Copy annotation functions from app.js for testing
+function encodeAnnotations(annotations) {
+  if (!annotations || annotations.length === 0) return '';
+  return annotations.map(a => {
+    const text = Buffer.from(encodeURIComponent(a.text)).toString('base64');
+    return `${a.startIndex},${a.endIndex},${text}`;
+  }).join(';');
+}
+
+function decodeAnnotations(str) {
+  if (!str) return [];
+  try {
+    return str.split(';').filter(Boolean).map(part => {
+      const [startIndex, endIndex, text] = part.split(',');
+      return {
+        startIndex: parseInt(startIndex, 10),
+        endIndex: parseInt(endIndex, 10),
+        text: decodeURIComponent(Buffer.from(text, 'base64').toString())
+      };
+    }).filter(a => !isNaN(a.startIndex) && !isNaN(a.endIndex) && a.text);
+  } catch (e) {
+    console.error('Failed to decode annotations:', e);
+    return [];
+  }
+}
+
+console.log('\n--- Annotation encoding/decoding tests ---');
+
+const annotationTests = [
+  {
+    name: 'encodes single annotation',
+    annotations: [{ startIndex: 0, endIndex: 2, text: 'This is a test' }],
+    check: (encoded, decoded) => {
+      return encoded.length > 0 &&
+             decoded.length === 1 &&
+             decoded[0].startIndex === 0 &&
+             decoded[0].endIndex === 2 &&
+             decoded[0].text === 'This is a test';
+    }
+  },
+  {
+    name: 'encodes multiple annotations',
+    annotations: [
+      { startIndex: 0, endIndex: 0, text: 'First' },
+      { startIndex: 3, endIndex: 5, text: 'Second' }
+    ],
+    check: (encoded, decoded) => {
+      return decoded.length === 2 &&
+             decoded[0].text === 'First' &&
+             decoded[1].text === 'Second';
+    }
+  },
+  {
+    name: 'handles special characters',
+    annotations: [{ startIndex: 1, endIndex: 1, text: 'Test with "quotes" & <special> chars' }],
+    check: (encoded, decoded) => {
+      return decoded.length === 1 &&
+             decoded[0].text === 'Test with "quotes" & <special> chars';
+    }
+  },
+  {
+    name: 'handles unicode characters',
+    annotations: [{ startIndex: 0, endIndex: 0, text: 'Emoji test 🎉 and 中文' }],
+    check: (encoded, decoded) => {
+      return decoded.length === 1 &&
+             decoded[0].text === 'Emoji test 🎉 and 中文';
+    }
+  },
+  {
+    name: 'handles empty array',
+    annotations: [],
+    check: (encoded, decoded) => {
+      return encoded === '' && decoded.length === 0;
+    }
+  },
+  {
+    name: 'handles single segment annotation (start === end)',
+    annotations: [{ startIndex: 5, endIndex: 5, text: 'Single segment note' }],
+    check: (encoded, decoded) => {
+      return decoded.length === 1 &&
+             decoded[0].startIndex === 5 &&
+             decoded[0].endIndex === 5;
+    }
+  },
+  {
+    name: 'handles multi-line text',
+    annotations: [{ startIndex: 0, endIndex: 3, text: 'Line 1\nLine 2\nLine 3' }],
+    check: (encoded, decoded) => {
+      return decoded.length === 1 &&
+             decoded[0].text.includes('\n') &&
+             decoded[0].text === 'Line 1\nLine 2\nLine 3';
+    }
+  }
+];
+
+for (const test of annotationTests) {
+  try {
+    const encoded = encodeAnnotations(test.annotations);
+    const decoded = decodeAnnotations(encoded);
+    if (test.check(encoded, decoded)) {
+      passed++;
+      console.log(`✓ ${test.name}`);
+    } else {
+      failed++;
+      console.error(`✗ ${test.name}`);
+      console.error(`  Encoded: ${encoded}`);
+      console.error(`  Decoded: ${JSON.stringify(decoded)}`);
+    }
+  } catch (err) {
+    failed++;
+    console.error(`✗ ${test.name}`);
+    console.error(`  Error: ${err.message}`);
+  }
+}
+
+// Test decoding invalid input
+console.log('\n--- Annotation error handling tests ---');
+
+const errorTests = [
+  {
+    name: 'handles malformed input gracefully',
+    input: 'invalid,data',
+    check: (result) => Array.isArray(result)
+  },
+  {
+    name: 'handles empty string',
+    input: '',
+    check: (result) => result.length === 0
+  },
+  {
+    name: 'handles null/undefined',
+    input: null,
+    check: (result) => result.length === 0
+  }
+];
+
+for (const test of errorTests) {
+  try {
+    const result = decodeAnnotations(test.input);
+    if (test.check(result)) {
+      passed++;
+      console.log(`✓ ${test.name}`);
+    } else {
+      failed++;
+      console.error(`✗ ${test.name}`);
+    }
+  } catch (err) {
+    failed++;
+    console.error(`✗ ${test.name}`);
+    console.error(`  Error: ${err.message}`);
+  }
+}
+
 const elapsed = Date.now() - startTime;
 console.log(`\n${passed} passed, ${failed} failed (${elapsed}ms)`);
 

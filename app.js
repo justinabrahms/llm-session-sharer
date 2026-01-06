@@ -5,6 +5,88 @@
   const show = (el) => el.classList.remove('hidden');
   const hide = (el) => el.classList.add('hidden');
 
+  // Detect mobile devices (view-only for annotations)
+  function isMobile() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           (window.matchMedia && window.matchMedia('(max-width: 600px)').matches);
+  }
+
+  // ========== Annotation URL Encoding ==========
+
+  // Encode annotations to URL-safe string
+  // Format: startIndex,endIndex,base64(text);startIndex,endIndex,base64(text);...
+  function encodeAnnotations(annotations) {
+    if (!annotations || annotations.length === 0) return '';
+    return annotations.map(a => {
+      const text = btoa(encodeURIComponent(a.text));
+      return `${a.startIndex},${a.endIndex},${text}`;
+    }).join(';');
+  }
+
+  // Decode annotations from URL fragment
+  function decodeAnnotations(str) {
+    if (!str) return [];
+    try {
+      return str.split(';').filter(Boolean).map(part => {
+        const [startIndex, endIndex, text] = part.split(',');
+        return {
+          startIndex: parseInt(startIndex, 10),
+          endIndex: parseInt(endIndex, 10),
+          text: decodeURIComponent(atob(text))
+        };
+      }).filter(a => !isNaN(a.startIndex) && !isNaN(a.endIndex) && a.text);
+    } catch (e) {
+      console.error('Failed to decode annotations:', e);
+      return [];
+    }
+  }
+
+  // Update URL fragment with annotations
+  function updateUrlAnnotations(annotations) {
+    const encoded = encodeAnnotations(annotations);
+    const url = new URL(window.location.href);
+    if (encoded) {
+      url.hash = `annotations=${encoded}`;
+    } else {
+      url.hash = '';
+    }
+    window.history.replaceState(null, '', url.toString());
+  }
+
+  // Load annotations from URL fragment
+  function loadAnnotationsFromUrl() {
+    const hash = window.location.hash.slice(1);
+    if (!hash.startsWith('annotations=')) return [];
+    return decodeAnnotations(hash.slice('annotations='.length));
+  }
+
+  // ========== Annotation State Management ==========
+
+  let annotations = [];
+  let selectionState = { mode: 'none', startIndex: null }; // none, started, editing
+  let editingAnnotationIndex = null;
+
+  function addAnnotation(startIndex, endIndex, text) {
+    // Ensure startIndex <= endIndex
+    if (startIndex > endIndex) {
+      [startIndex, endIndex] = [endIndex, startIndex];
+    }
+    annotations.push({ startIndex, endIndex, text });
+    updateUrlAnnotations(annotations);
+  }
+
+  function editAnnotation(index, text) {
+    if (annotations[index]) {
+      annotations[index].text = text;
+      updateUrlAnnotations(annotations);
+    }
+  }
+
+  function deleteAnnotation(index) {
+    annotations.splice(index, 1);
+    updateUrlAnnotations(annotations);
+  }
+
   // Extract gist ID from various formats
   function parseGistParam(param) {
     if (!param) return null;
@@ -269,8 +351,149 @@
     return result.join('\n');
   }
 
+  // Check if a segment index is within any annotation range
+  function getAnnotationsForSegment(segmentIndex) {
+    return annotations.map((a, i) => ({ ...a, annotationIndex: i }))
+      .filter(a => segmentIndex >= a.startIndex && segmentIndex <= a.endIndex);
+  }
+
+  // Check if segment is in current selection range
+  function isInSelectionRange(segmentIndex) {
+    if (selectionState.mode !== 'started') return false;
+    const start = Math.min(selectionState.startIndex, segmentIndex);
+    const end = Math.max(selectionState.startIndex, segmentIndex);
+    return segmentIndex >= start && segmentIndex <= end;
+  }
+
+  // Cancel current selection
+  function cancelSelection() {
+    selectionState = { mode: 'none', startIndex: null };
+    editingAnnotationIndex = null;
+    const input = $('#annotation-input-container');
+    if (input) input.remove();
+    // Re-render to clear selection highlighting
+    if (window._lastSegments) {
+      renderConversation(window._lastSegments);
+    }
+  }
+
+  // Show annotation input form
+  function showAnnotationInput(startIndex, endIndex, existingText = '', annotationIdx = null) {
+    // Remove any existing input
+    const existing = $('#annotation-input-container');
+    if (existing) existing.remove();
+
+    const container = document.createElement('div');
+    container.id = 'annotation-input-container';
+    container.className = 'annotation-input-container';
+    container.innerHTML = `
+      <textarea id="annotation-text" placeholder="Add your annotation..." rows="3">${escapeHtml(existingText)}</textarea>
+      <div class="annotation-input-actions">
+        <button id="annotation-save" class="annotation-btn save">Save</button>
+        <button id="annotation-cancel" class="annotation-btn cancel">Cancel</button>
+      </div>
+    `;
+
+    // Insert after the endIndex segment
+    const segments = Array.from($('#conversation').children);
+    const targetSegment = segments[endIndex];
+    if (targetSegment) {
+      targetSegment.after(container);
+    } else {
+      $('#conversation').appendChild(container);
+    }
+
+    const textarea = $('#annotation-text');
+    textarea.focus();
+
+    $('#annotation-save').addEventListener('click', () => {
+      const text = textarea.value.trim();
+      if (text) {
+        if (annotationIdx !== null) {
+          editAnnotation(annotationIdx, text);
+        } else {
+          addAnnotation(startIndex, endIndex, text);
+        }
+      }
+      cancelSelection();
+    });
+
+    $('#annotation-cancel').addEventListener('click', cancelSelection);
+
+    // Handle Escape key
+    textarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        cancelSelection();
+      } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        $('#annotation-save').click();
+      }
+    });
+  }
+
+  // Handle segment click for range selection (desktop only)
+  function handleSegmentClick(segmentIndex) {
+    if (isMobile()) return;
+
+    if (selectionState.mode === 'none') {
+      // Start selection
+      selectionState = { mode: 'started', startIndex: segmentIndex };
+      renderConversation(window._lastSegments);
+    } else if (selectionState.mode === 'started') {
+      // Complete selection
+      const startIdx = Math.min(selectionState.startIndex, segmentIndex);
+      const endIdx = Math.max(selectionState.startIndex, segmentIndex);
+      selectionState = { mode: 'editing', startIndex: startIdx, endIndex: endIdx };
+      renderConversation(window._lastSegments);
+      showAnnotationInput(startIdx, endIdx);
+    }
+  }
+
+  // Render annotation block
+  function renderAnnotationBlock(annotation, annotationIndex, afterSegmentIndex) {
+    const el = document.createElement('div');
+    el.className = 'annotation-block';
+    el.dataset.annotationIndex = annotationIndex;
+
+    const actionsHtml = isMobile() ? '' : `
+      <div class="annotation-actions">
+        <button class="annotation-edit" title="Edit">Edit</button>
+        <button class="annotation-delete" title="Delete">Delete</button>
+      </div>
+    `;
+
+    el.innerHTML = `
+      <div class="annotation-content">
+        <span class="annotation-icon">📝</span>
+        <span class="annotation-text">${escapeHtml(annotation.text)}</span>
+      </div>
+      ${actionsHtml}
+    `;
+
+    if (!isMobile()) {
+      const editBtn = el.querySelector('.annotation-edit');
+      const deleteBtn = el.querySelector('.annotation-delete');
+
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        editingAnnotationIndex = annotationIndex;
+        selectionState = { mode: 'editing', startIndex: annotation.startIndex, endIndex: annotation.endIndex };
+        renderConversation(window._lastSegments);
+        showAnnotationInput(annotation.startIndex, annotation.endIndex, annotation.text, annotationIndex);
+      });
+
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteAnnotation(annotationIndex);
+        renderConversation(window._lastSegments);
+      });
+    }
+
+    return el;
+  }
+
   // Render conversation
   function renderConversation(segments) {
+    window._lastSegments = segments; // Store for re-rendering
     const container = $('#conversation');
     container.innerHTML = '';
 
@@ -309,26 +532,49 @@
       }
     }
 
-    for (const segment of merged) {
+    // Track which annotations end at which segment index
+    const annotationEndsAt = {};
+    annotations.forEach((a, i) => {
+      if (!annotationEndsAt[a.endIndex]) {
+        annotationEndsAt[a.endIndex] = [];
+      }
+      annotationEndsAt[a.endIndex].push({ annotation: a, index: i });
+    });
+
+    for (let segIdx = 0; segIdx < merged.length; segIdx++) {
+      const segment = merged[segIdx];
+
+      // Determine if this segment is highlighted (in annotation or selection)
+      const segmentAnnotations = getAnnotationsForSegment(segIdx);
+      const isAnnotated = segmentAnnotations.length > 0;
+      const isSelecting = isInSelectionRange(segIdx);
+      const isInEditRange = selectionState.mode === 'editing' &&
+        segIdx >= selectionState.startIndex && segIdx <= selectionState.endIndex;
+
+      let el;
       if (segment.type === 'user') {
-        const el = document.createElement('div');
+        el = document.createElement('div');
         el.className = 'message-row user';
+        if (isAnnotated) el.classList.add('annotated');
+        if (isSelecting || isInEditRange) el.classList.add('selecting');
         el.innerHTML = `
           <div class="message-label">You</div>
           <div class="message-bubble">${formatContent(segment.content)}</div>
         `;
-        container.appendChild(el);
       } else if (segment.type === 'assistant') {
-        const el = document.createElement('div');
+        el = document.createElement('div');
         el.className = 'message-row assistant';
+        if (isAnnotated) el.classList.add('annotated');
+        if (isSelecting || isInEditRange) el.classList.add('selecting');
         el.innerHTML = `
           <div class="message-label">Claude</div>
           <div class="message-bubble">${renderMarkdown(segment.content)}</div>
         `;
-        container.appendChild(el);
       } else if (segment.type === 'tool') {
-        const el = document.createElement('div');
+        el = document.createElement('div');
         el.className = 'tool-block';
+        if (isAnnotated) el.classList.add('annotated');
+        if (isSelecting || isInEditRange) el.classList.add('selecting');
         el.innerHTML = `
           <div class="tool-summary">
             <span class="tool-toggle">&#9654;</span>
@@ -336,14 +582,17 @@
           </div>
           <div class="tool-details">${escapeHtml(segment.content)}</div>
         `;
-        el.querySelector('.tool-summary').addEventListener('click', () => {
-          el.classList.toggle('expanded');
+        el.querySelector('.tool-summary').addEventListener('click', (e) => {
+          if (selectionState.mode === 'none') {
+            el.classList.toggle('expanded');
+          }
         });
-        container.appendChild(el);
       } else if (segment.type === 'tool-group') {
         const toolCount = segment.items.filter(i => i.type === 'tool').length;
-        const el = document.createElement('div');
+        el = document.createElement('div');
         el.className = 'tool-block tool-group';
+        if (isAnnotated) el.classList.add('annotated');
+        if (isSelecting || isInEditRange) el.classList.add('selecting');
         const details = segment.items.map(item => {
           if (item.type === 'tool') {
             return '▸ ' + item.content;
@@ -358,15 +607,47 @@
           </div>
           <div class="tool-details">${escapeHtml(details)}</div>
         `;
-        el.querySelector('.tool-summary').addEventListener('click', () => {
-          el.classList.toggle('expanded');
+        el.querySelector('.tool-summary').addEventListener('click', (e) => {
+          if (selectionState.mode === 'none') {
+            el.classList.toggle('expanded');
+          }
         });
-        container.appendChild(el);
       } else if (segment.type === 'snip') {
-        const el = document.createElement('div');
+        el = document.createElement('div');
         el.className = 'snip';
+        if (isAnnotated) el.classList.add('annotated');
+        if (isSelecting || isInEditRange) el.classList.add('selecting');
         el.textContent = segment.content;
+      }
+
+      if (el) {
+        // Add click handler for range selection (desktop only)
+        if (!isMobile()) {
+          el.dataset.segmentIndex = segIdx;
+          el.addEventListener('click', (e) => {
+            // Don't trigger if clicking on annotation actions or during text selection
+            if (e.target.closest('.annotation-actions') ||
+                e.target.closest('.annotation-input-container') ||
+                window.getSelection().toString()) {
+              return;
+            }
+            handleSegmentClick(segIdx);
+          });
+          // Add visual cue for clickable segments
+          if (selectionState.mode !== 'editing') {
+            el.classList.add('selectable');
+          }
+        }
+
         container.appendChild(el);
+
+        // Render annotation blocks that end at this segment
+        if (annotationEndsAt[segIdx]) {
+          for (const { annotation, index } of annotationEndsAt[segIdx]) {
+            const annotationEl = renderAnnotationBlock(annotation, index, segIdx);
+            container.appendChild(annotationEl);
+          }
+        }
       }
     }
   }
@@ -417,6 +698,15 @@
         if (gistId) {
           window.location.search = `?gist=${input}`;
         }
+      }
+    });
+  }
+
+  // Handle global Escape key for canceling annotation selection
+  function setupAnnotationEscapeHandler() {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && selectionState.mode !== 'none') {
+        cancelSelection();
       }
     });
   }
@@ -505,8 +795,13 @@
 
       hide($('#loading'));
       show($('#viewer'));
+
+      // Load annotations from URL before rendering
+      annotations = loadAnnotationsFromUrl();
+
       renderConversation(segments);
       setupKeyboardNav();
+      setupAnnotationEscapeHandler();
 
       // Show link to original gist
       const gistLink = $('#gist-link');
