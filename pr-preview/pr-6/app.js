@@ -384,12 +384,11 @@
       .filter(a => segmentIndex >= a.startIndex && segmentIndex <= a.endIndex);
   }
 
-  // Check if segment is in current selection range
+  // Check if segment is the selection start point
   function isInSelectionRange(segmentIndex) {
     if (selectionState.mode !== 'started') return false;
-    const start = Math.min(selectionState.startIndex, segmentIndex);
-    const end = Math.max(selectionState.startIndex, segmentIndex);
-    return segmentIndex >= start && segmentIndex <= end;
+    // Only highlight the start segment until user clicks a second one
+    return segmentIndex === selectionState.startIndex;
   }
 
   // Cancel current selection
