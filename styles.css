@@ -341,6 +341,150 @@ footer a:hover {
   margin: 0 8px;
 }
 
+/* Annotation styles */
+.selectable {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.selectable:hover {
+  background-color: rgba(255, 235, 59, 0.1);
+}
+
+.selecting {
+  background-color: rgba(255, 235, 59, 0.3) !important;
+  border-left: 3px solid #ffc107 !important;
+}
+
+.annotated {
+  border-left: 3px solid #ff9800;
+  background-color: rgba(255, 152, 0, 0.08);
+}
+
+.annotated.message-row .message-bubble {
+  background-color: rgba(255, 152, 0, 0.12);
+}
+
+.annotation-block {
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-left: 4px solid #ff9800;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 4px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.annotation-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+}
+
+.annotation-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.annotation-text {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-size: 0.9rem;
+  color: #5d4037;
+  line-height: 1.4;
+}
+
+.annotation-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.annotation-actions button {
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+  color: #666;
+}
+
+.annotation-actions button:hover {
+  background: #f5f5f5;
+  border-color: #999;
+}
+
+.annotation-edit:hover {
+  color: #1565c0;
+}
+
+.annotation-delete:hover {
+  color: #c62828;
+}
+
+/* Annotation input form */
+.annotation-input-container {
+  background: #fffde7;
+  border: 1px solid #ffe082;
+  border-radius: 4px;
+  padding: 12px;
+  margin: 6px 0;
+}
+
+.annotation-input-container textarea {
+  width: 100%;
+  padding: 8px;
+  font-size: 0.9rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.annotation-input-container textarea:focus {
+  outline: none;
+  border-color: #ff9800;
+  box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.2);
+}
+
+.annotation-input-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+.annotation-btn {
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.annotation-btn.save {
+  background: #ff9800;
+  color: white;
+}
+
+.annotation-btn.save:hover {
+  background: #f57c00;
+}
+
+.annotation-btn.cancel {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.annotation-btn.cancel:hover {
+  background: #d0d0d0;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   body {
