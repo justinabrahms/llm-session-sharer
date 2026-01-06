@@ -136,7 +136,8 @@ h1 a:hover {
 }
 
 #gist-link,
-#copy-url {
+#copy-url,
+.annotate-toggle {
   padding: 4px 10px;
   font-size: 0.8rem;
   background: #e0e0e0;
@@ -148,8 +149,19 @@ h1 a:hover {
 }
 
 #gist-link:hover,
-#copy-url:hover {
+#copy-url:hover,
+.annotate-toggle:hover {
   background: #d0d0d0;
+}
+
+/* Annotation mode toggle button */
+.annotate-toggle.active {
+  background: #ff9800;
+  color: white;
+}
+
+.annotate-toggle.active:hover {
+  background: #f57c00;
 }
 
 /* Conversation */
@@ -502,5 +514,10 @@ footer a:hover {
 
   .message-bubble {
     padding: 4px 6px;
+  }
+
+  /* Hide annotation toggle on mobile (view-only) */
+  .annotate-toggle {
+    display: none;
   }
 }
