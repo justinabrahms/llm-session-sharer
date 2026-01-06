@@ -65,6 +65,33 @@
   let annotations = [];
   let selectionState = { mode: 'none', startIndex: null }; // none, started, editing
   let editingAnnotationIndex = null;
+  let annotationModeActive = false;
+
+  // Toggle annotation mode on/off
+  function toggleAnnotationMode() {
+    annotationModeActive = !annotationModeActive;
+    updateAnnotationModeUI();
+    if (!annotationModeActive) {
+      // Exiting mode cancels any in-progress selection
+      cancelSelection();
+    } else if (window._lastSegments) {
+      // Re-render to show selectable state
+      renderConversation(window._lastSegments);
+    }
+  }
+
+  // Update UI to reflect annotation mode state
+  function updateAnnotationModeUI() {
+    const btn = $('#annotate-toggle');
+    const conversation = $('#conversation');
+    if (btn) {
+      btn.classList.toggle('active', annotationModeActive);
+      btn.textContent = annotationModeActive ? 'Done' : 'Annotate';
+    }
+    if (conversation) {
+      conversation.classList.toggle('annotation-mode', annotationModeActive);
+    }
+  }
 
   function addAnnotation(startIndex, endIndex, text) {
     // Ensure startIndex <= endIndex
@@ -357,12 +384,11 @@
       .filter(a => segmentIndex >= a.startIndex && segmentIndex <= a.endIndex);
   }
 
-  // Check if segment is in current selection range
+  // Check if segment is the selection start point
   function isInSelectionRange(segmentIndex) {
     if (selectionState.mode !== 'started') return false;
-    const start = Math.min(selectionState.startIndex, segmentIndex);
-    const end = Math.max(selectionState.startIndex, segmentIndex);
-    return segmentIndex >= start && segmentIndex <= end;
+    // Only highlight the start segment until user clicks a second one
+    return segmentIndex === selectionState.startIndex;
   }
 
   // Cancel current selection
@@ -394,9 +420,8 @@
       </div>
     `;
 
-    // Insert after the endIndex segment
-    const segments = Array.from($('#conversation').children);
-    const targetSegment = segments[endIndex];
+    // Insert after the endIndex segment (find by data attribute, not array index)
+    const targetSegment = document.querySelector(`[data-segment-index="${endIndex}"]`);
     if (targetSegment) {
       targetSegment.after(container);
     } else {
@@ -430,9 +455,10 @@
     });
   }
 
-  // Handle segment click for range selection (desktop only)
+  // Handle segment click for range selection (desktop only, annotation mode required)
   function handleSegmentClick(segmentIndex) {
     if (isMobile()) return;
+    if (!annotationModeActive) return;
 
     if (selectionState.mode === 'none') {
       // Start selection
@@ -633,8 +659,8 @@
             }
             handleSegmentClick(segIdx);
           });
-          // Add visual cue for clickable segments
-          if (selectionState.mode !== 'editing') {
+          // Add visual cue for clickable segments (only when annotation mode is active)
+          if (annotationModeActive && selectionState.mode !== 'editing') {
             el.classList.add('selectable');
           }
         }
@@ -709,6 +735,14 @@
         cancelSelection();
       }
     });
+  }
+
+  // Setup annotation mode toggle button
+  function setupAnnotationModeToggle() {
+    const btn = $('#annotate-toggle');
+    if (btn) {
+      btn.addEventListener('click', toggleAnnotationMode);
+    }
   }
 
   // Keyboard navigation (j/k vim-style)
@@ -802,6 +836,7 @@
       renderConversation(segments);
       setupKeyboardNav();
       setupAnnotationEscapeHandler();
+      setupAnnotationModeToggle();
 
       // Show link to original gist
       const gistLink = $('#gist-link');
