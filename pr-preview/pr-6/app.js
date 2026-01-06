@@ -420,9 +420,8 @@
       </div>
     `;
 
-    // Insert after the endIndex segment
-    const segments = Array.from($('#conversation').children);
-    const targetSegment = segments[endIndex];
+    // Insert after the endIndex segment (find by data attribute, not array index)
+    const targetSegment = document.querySelector(`[data-segment-index="${endIndex}"]`);
     if (targetSegment) {
       targetSegment.after(container);
     } else {
