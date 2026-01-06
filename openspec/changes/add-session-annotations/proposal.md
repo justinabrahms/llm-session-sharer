@@ -9,10 +9,11 @@ there's no way to annotate a session without modifying the original export.
 
 ## What Changes
 
-- Add ability to insert annotations between conversation segments
+- Add ability to annotate a range of conversation segments (single segment or
+  multiple)
 - Store annotations in URL fragment for shareability (no backend required)
-- Click-based UI to add, edit, and delete annotations
-- Annotations visually distinct from conversation content
+- Click-based UI to select range, then add annotation text
+- Annotated ranges visually highlighted with annotation displayed alongside
 
 ## Impact
 
