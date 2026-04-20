@@ -114,6 +114,16 @@
     updateUrlAnnotations(annotations);
   }
 
+  // Check if param is a raw URL (not a gist)
+  function isRawUrl(param) {
+    try {
+      const url = new URL(param);
+      return url.protocol === 'https:' || url.protocol === 'http:';
+    } catch (e) {
+      return false;
+    }
+  }
+
   // Extract gist ID from various formats
   function parseGistParam(param) {
     if (!param) return null;
@@ -123,6 +133,18 @@
     // Handle owner/id format or just id
     const parts = param.split('/');
     return parts[parts.length - 1];
+  }
+
+  // Fetch raw URL content directly
+  async function fetchRawUrl(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Session file not found. Make sure the URL is correct and the file is public.');
+      }
+      throw new Error(`Failed to load session: ${response.status}`);
+    }
+    return response.text();
   }
 
   // Fetch gist content from GitHub API
@@ -810,20 +832,31 @@
       return;
     }
 
-    const gistId = parseGistParam(gistParam);
-    if (!gistId) {
-      showError('Invalid gist URL or ID.');
-      return;
-    }
+    const useRawUrl = isRawUrl(gistParam) && !gistParam.includes('gist.github.com');
 
     show($('#loading'));
 
     try {
-      const content = await fetchGist(gistId);
+      let content;
+      let sourceUrl;
+
+      if (useRawUrl) {
+        content = await fetchRawUrl(gistParam);
+        sourceUrl = gistParam;
+      } else {
+        const gistId = parseGistParam(gistParam);
+        if (!gistId) {
+          showError('Invalid gist URL or ID.');
+          return;
+        }
+        content = await fetchGist(gistId);
+        sourceUrl = `https://gist.github.com/${gistId}`;
+      }
+
       const segments = parseExport(content);
 
       if (segments.length === 0) {
-        showError('Could not parse any conversation from this gist.');
+        showError('Could not parse any conversation from this session.');
         return;
       }
 
@@ -838,9 +871,9 @@
       setupAnnotationEscapeHandler();
       setupAnnotationModeToggle();
 
-      // Show link to original gist
+      // Show link to original source
       const gistLink = $('#gist-link');
-      gistLink.href = `https://gist.github.com/${gistId}`;
+      gistLink.href = sourceUrl;
       show(gistLink);
     } catch (err) {
       showError(err.message);
